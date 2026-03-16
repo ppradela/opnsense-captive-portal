@@ -1,0 +1,90 @@
+#!/bin/sh
+#
+# portal_backend.rc
+#
+# RC startup script for the captive portal backend service.
+# Runs portal_backend.py as root on 127.0.0.1:8765.
+# lighttpd proxies /change-password and /stats to this port.
+#
+# INSTALL:
+#   cp portal_backend.rc /usr/local/etc/rc.d/portal_backend
+#   chmod 755 /usr/local/etc/rc.d/portal_backend
+#
+# ENABLE (survives reboots):
+#   echo 'portal_backend_enable="YES"' >> /etc/rc.conf.local
+#
+# USAGE:
+#   service portal_backend start
+#   service portal_backend stop
+#   service portal_backend status
+
+. /etc/rc.subr
+
+name="portal_backend"
+rcvar="portal_backend_enable"
+command="/usr/local/bin/python3"
+command_args="/usr/local/opnsense/scripts/captiveportal/portal_backend.py"
+pidfile="/var/run/${name}.pid"
+start_precmd="${name}_prestart"
+
+load_rc_config $name
+: ${portal_backend_enable:="NO"}
+
+portal_backend_prestart()
+{
+    # Create pidfile directory if it doesn't exist
+    install -d -m 755 /var/run
+}
+
+start_cmd="${name}_start"
+stop_cmd="${name}_stop"
+status_cmd="${name}_status"
+
+PATCHSCRIPT="/usr/local/opnsense/scripts/captiveportal/post_reconfigure.sh"
+WATCHERPID="/var/run/${name}_watcher.pid"
+
+portal_backend_start()
+{
+    echo "Starting ${name}."
+
+    # Patch lighttpd config immediately — handles plain service restarts that
+    # regenerate the config without going through the configd syshook path.
+    sh "${PATCHSCRIPT}"
+
+    # Python backend
+    /usr/sbin/daemon -p ${pidfile} -f \
+        ${command} ${command_args} 2>>/var/log/portal_backend.log
+
+    # Background watcher: re-patches if the captive portal service is ever
+    # restarted and wipes the proxy rules from the lighttpd config.
+    /usr/sbin/daemon -p ${WATCHERPID} -f \
+        sh -c "while true; do sleep 5; \
+               grep -q '8765' /var/etc/lighttpd-cp-zone-0.conf 2>/dev/null || \
+               sh ${PATCHSCRIPT}; done"
+}
+
+portal_backend_stop()
+{
+    if [ -f "${WATCHERPID}" ]; then
+        kill $(cat ${WATCHERPID}) 2>/dev/null
+        rm -f ${WATCHERPID}
+    fi
+    if [ -f "${pidfile}" ]; then
+        echo "Stopping ${name}."
+        kill $(cat ${pidfile}) 2>/dev/null
+        rm -f ${pidfile}
+    else
+        echo "${name} is not running."
+    fi
+}
+
+portal_backend_status()
+{
+    if [ -f "${pidfile}" ] && kill -0 $(cat ${pidfile}) 2>/dev/null; then
+        echo "${name} is running as PID $(cat ${pidfile})."
+    else
+        echo "${name} is not running."
+    fi
+}
+
+run_rc_command "$1"

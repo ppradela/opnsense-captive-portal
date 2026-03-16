@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network Access Portal</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f19;
+      --surface:   #111827;
+      --border:    rgba(255,255,255,0.07);
+      --border-hi: rgba(99,179,237,0.45);
+      --text:      #e8eaf0;
+      --muted:     #6b7280;
+      --accent:    #63b3ed;
+      --accent2:   #4fd1c5;
+      --danger:    #fc8181;
+      --success:   #68d391;
+      --warning:   #f6ad55;
+      --radius:    14px;
+      --mono:      'DM Mono', monospace;
+      --body:      'DM Sans', sans-serif;
+      --display:   'Playfair Display', serif;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,179,237,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(79,209,197,0.06) 0%, transparent 60%),
+        repeating-linear-gradient(0deg, transparent, transparent 39px,
+          rgba(255,255,255,0.015) 39px, rgba(255,255,255,0.015) 40px),
+        repeating-linear-gradient(90deg, transparent, transparent 39px,
+          rgba(255,255,255,0.015) 39px, rgba(255,255,255,0.015) 40px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+      animation: fadeUp 0.6s ease both;
+    }
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(99,179,237,0.08);
+      border: 1px solid rgba(99,179,237,0.2);
+      border-radius: 100px;
+      padding: 5px 14px;
+      font-size: 11.5px;
+      font-family: var(--mono);
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .header-badge::before {
+      content: '';
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .header h1 {
+      font-family: var(--display);
+      font-size: clamp(26px, 5vw, 36px);
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 320px;
+      margin: 0 auto;
+    }
+
+    /* ── Card ── */
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 20px 60px rgba(0,0,0,0.5),
+        0 4px 16px rgba(0,0,0,0.3);
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Info bar (always visible) ── */
+    .info-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-cell {
+      padding: 13px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .info-cell:first-child { border-right: 1px solid var(--border); }
+    .info-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+    .info-value {
+      font-size: 13px;
+      font-family: var(--mono);
+      color: var(--accent2);
+      font-weight: 500;
+    }
+
+    /* ── Form body ── */
+    .card-body { padding: 28px 28px 24px; }
+
+    .field { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      appearance: none;
+    }
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      border-color: var(--border-hi);
+      background: rgba(99,179,237,0.04);
+      box-shadow: 0 0 0 3px rgba(99,179,237,0.1);
+    }
+    input::placeholder { color: #374151; }
+
+    .input-wrap { position: relative; }
+    .input-wrap input { padding-right: 42px; }
+    .toggle-pw {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 4px;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .toggle-pw:hover { color: var(--accent); }
+
+    /* ── Password strength indicator ── */
+    .pw-strength {
+      display: none;
+      margin-top: 6px;
+      gap: 4px;
+    }
+    .pw-strength.visible { display: flex; }
+    .pw-strength-bar {
+      height: 3px;
+      flex: 1;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.06);
+      transition: background 0.3s;
+    }
+    .pw-strength-bar.active-weak   { background: var(--danger); }
+    .pw-strength-bar.active-medium { background: var(--warning); }
+    .pw-strength-bar.active-strong { background: var(--success); }
+    .pw-strength-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── Primary button ── */
+    .btn-submit {
+      width: 100%;
+      background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+      border: none;
+      border-radius: 8px;
+      padding: 13px;
+      color: #fff;
+      font-family: var(--body);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      margin-top: 8px;
+      overflow: hidden;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 18px rgba(59,130,246,0.3);
+    }
+    .btn-submit:hover:not(:disabled) {
+      opacity: 0.93;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(59,130,246,0.4);
+    }
+    .btn-submit:active:not(:disabled) { transform: translateY(0); }
+    .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+    .btn-submit .btn-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    /* ── Secondary / ghost button ── */
+    .btn-ghost {
+      width: 100%;
+      background: rgba(99,179,237,0.06);
+      border: 1px solid rgba(99,179,237,0.2);
+      border-radius: 8px;
+      padding: 11px;
+      color: var(--accent);
+      font-family: var(--body);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.2s, border-color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    .btn-ghost:hover {
+      background: rgba(99,179,237,0.1);
+      border-color: rgba(99,179,237,0.35);
+    }
+
+    /* ── Alert messages ── */
+    .msg {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 13.5px;
+      margin-bottom: 16px;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+    .msg.show { display: flex; }
+    .msg-error {
+      background: rgba(252,129,129,0.08);
+      border: 1px solid rgba(252,129,129,0.25);
+      color: var(--danger);
+    }
+    .msg-success {
+      background: rgba(104,211,145,0.08);
+      border: 1px solid rgba(104,211,145,0.25);
+      color: var(--success);
+    }
+    .msg-warning {
+      background: rgba(246,173,85,0.08);
+      border: 1px solid rgba(246,173,85,0.25);
+      color: var(--warning);
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Card footer ── */
+    .card-footer {
+      border-top: 1px solid var(--border);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .footer-lock {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .footer-lock svg { flex-shrink: 0; color: var(--accent2); }
+    .footer-policy { font-size: 11.5px; color: var(--muted); }
+    .footer-policy a { color: var(--accent); text-decoration: none; }
+    .footer-policy a:hover { text-decoration: underline; }
+
+    /* ── View routing ── */
+    #view-login    { display: block; }
+    #view-session  { display: none; }
+    #view-password { display: none; }
+
+    /* ── Session stats grid ── */
+    .session-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .session-stat {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .session-stat .s-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .session-stat .s-val {
+      font-size: 15px;
+      font-family: var(--mono);
+      color: var(--text);
+      font-weight: 500;
+    }
+    .session-stat.wide { grid-column: 1 / -1; }
+
+    /* ── DNS Statistics ── */
+    .stats-section {
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .stats-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    .stats-title {
+      font-size: 11px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+    .stats-refresh {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 3px;
+      line-height: 1;
+      border-radius: 4px;
+      transition: color 0.2s, background 0.15s;
+    }
+    .stats-refresh:hover { color: var(--accent); background: rgba(99,179,237,0.08); }
+    .stats-refresh.spinning svg { animation: spin 0.8s linear infinite; }
+    .stats-loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .stats-spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(99,179,237,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    .stats-err   { padding: 14px 16px; font-size: 12.5px; color: var(--danger); }
+    .stats-empty { padding: 14px 16px; font-size: 12.5px; color: var(--muted); text-align: center; }
+    .stats-list  { padding: 6px 0; }
+    .stats-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 16px;
+      transition: background 0.15s;
+    }
+    .stats-row:hover { background: rgba(255,255,255,0.03); }
+    .stats-rank {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted);
+      width: 18px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .stats-bar-wrap { flex: 1; min-width: 0; }
+    .stats-domain {
+      font-size: 12.5px;
+      font-family: var(--mono);
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+    .stats-bar-bg {
+      height: 3px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .stats-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+      transition: width 0.5s ease;
+    }
+    .stats-count {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      flex-shrink: 0;
+      text-align: right;
+      min-width: 28px;
+    }
+
+    /* ── Session action buttons ── */
+    .btn-logout {
+      width: 100%;
+      background: rgba(252,129,129,0.08);
+      border: 1px solid rgba(252,129,129,0.25);
+      border-radius: 8px;
+      padding: 13px;
+      color: var(--danger);
+      font-family: var(--body);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .btn-logout:hover {
+      background: rgba(252,129,129,0.14);
+      border-color: rgba(252,129,129,0.45);
+    }
+
+    /* ── Change password view header ── */
+    .view-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .view-back {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 4px;
+      line-height: 1;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.15s;
+      flex-shrink: 0;
+    }
+    .view-back:hover { color: var(--accent); background: rgba(99,179,237,0.08); }
+    .view-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* ── Page footer ── */
+    .page-footer {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #374151;
+      text-align: center;
+      font-family: var(--mono);
+      animation: fadeUp 0.6s 0.25s ease both;
+    }
+
+    @media (max-width: 440px) {
+      .card-body { padding: 22px 18px 18px; }
+      .info-cell  { padding: 11px 14px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-badge">Secure Network Access</div>
+    <h1>Welcome</h1>
+    <p>Log in to access the network. Your session is encrypted and monitored.</p>
+  </div>
+
+  <div class="card">
+
+    <!-- IP address and session limit — always visible across all views -->
+    <div class="info-bar">
+      <div class="info-cell">
+        <span class="info-label">Your IP Address</span>
+        <span class="info-value" id="display-ip">—</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-label">Session Limit</span>
+        <span class="info-value" id="display-limit">—</span>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         VIEW: LOGIN
+         POST /api/captiveportal/access/logon/{zoneid}/
+         Header: zoneid: {zoneid}
+         Body:   user=...&password=...
+    ══════════════════════════════════════ -->
+    <div id="view-login">
+      <div class="card-body">
+
+        <div class="msg msg-error" id="login-error-box">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span id="login-error-text">Invalid username or password.</span>
+        </div>
+
+        <div class="field">
+          <label for="inputUsername">Username</label>
+          <input type="text" id="inputUsername"
+            placeholder="Enter username"
+            autocomplete="username"
+            spellcheck="false"
+            autocorrect="off"
+            autocapitalize="none" />
+        </div>
+
+        <div class="field">
+          <label for="inputPassword">Password</label>
+          <div class="input-wrap">
+            <input type="password" id="inputPassword"
+              placeholder="Enter password"
+              autocomplete="current-password" />
+            <button type="button" class="toggle-pw" onclick="togglePw('inputPassword','eye-login')" aria-label="Show/hide password" tabindex="-1">
+              <svg id="eye-login" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="button" class="btn-submit" id="btn-login" onclick="doLogin()">
+          <div class="btn-inner">
+            <div class="spinner" id="login-spinner"></div>
+            <span id="btn-login-text">Log in and connect</span>
+            <svg id="btn-login-arrow" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </div>
+        </button>
+
+      </div>
+
+      <div class="card-footer">
+        <div class="footer-lock">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          TLS encrypted login
+        </div>
+        <div class="footer-policy">
+          <a href="#" onclick="return false;">Acceptable Use Policy</a>
+        </div>
+      </div>
+    </div><!-- /view-login -->
+
+    <!-- ══════════════════════════════════════
+         VIEW: ACTIVE SESSION
+         Shows connection stats, DNS stats,
+         and links to change password / logout.
+    ══════════════════════════════════════ -->
+    <div id="view-session">
+      <div class="card-body">
+
+        <div class="msg msg-success show">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>You are connected. Enjoy using the network.</span>
+        </div>
+
+        <!-- Session timer stats -->
+        <div class="session-grid">
+          <div class="session-stat wide">
+            <div class="s-label">IP Address</div>
+            <div class="s-val" id="session-ip">—</div>
+          </div>
+          <div class="session-stat">
+            <div class="s-label">Connection Time</div>
+            <div class="s-val" id="session-elapsed">00:00:00</div>
+          </div>
+          <div class="session-stat">
+            <div class="s-label">Remaining Time</div>
+            <div class="s-val" id="session-remaining">—</div>
+          </div>
+        </div>
+
+        <!-- DNS statistics widget
+             Fetches from /stats?ip={clientip}
+             lighttpd proxies /stats → portal_backend.py:8765 → dns_stats.py -->
+        <div class="stats-section">
+          <div class="stats-header">
+            <span class="stats-title">Most Visited Domains</span>
+            <button class="stats-refresh" id="stats-refresh-btn" onclick="loadStats()" title="Refresh">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <polyline points="23 4 23 10 17 10"/>
+                <polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+            </button>
+          </div>
+          <div id="stats-loading" class="stats-loading">
+            <div class="stats-spinner"></div>
+            <span>Ładowanie statystyk…</span>
+          </div>
+          <div id="stats-error" class="stats-err"   style="display:none;">Unable to load DNS statistics.</div>
+          <div id="stats-list"  class="stats-list"  style="display:none;"></div>
+          <div id="stats-empty" class="stats-empty" style="display:none;">No data — DNS queries will appear soon.</div>
+        </div>
+
+        <!-- Change password shortcut -->
+        <button type="button" class="btn-ghost" onclick="showView('password')">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          Change Password
+        </button>
+
+        <button type="button" class="btn-logout" style="margin-top:10px;" onclick="doLogout()">Log Out</button>
+
+      </div>
+    </div><!-- /view-session -->
+
+    <!-- ══════════════════════════════════════
+         VIEW: CHANGE PASSWORD
+         POST /change-password
+         lighttpd proxies → portal_backend.py:8765
+         → php change_password.php (stdin JSON pipe)
+         → OPNsense AuthenticationFactory (verifies old password)
+         → local_user_set_password() + write_config()
+         Credentials passed as JSON on stdin — never as shell
+         arguments, so special characters ($, !) are safe.
+    ══════════════════════════════════════ -->
+    <div id="view-password">
+      <div class="card-body">
+
+        <div class="view-header">
+          <button type="button" class="view-back" onclick="showView('session')" aria-label="Wróć">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+          </button>
+          <span class="view-title">Change Password</span>
+        </div>
+
+        <div class="msg msg-error" id="pw-error-box">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span id="pw-error-text">Password change error.</span>
+        </div>
+
+        <div class="msg msg-success" id="pw-success-box">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>Password changed successfully.</span>
+        </div>
+
+        <div class="field">
+          <label for="pwCurrent">Current Password</label>
+          <div class="input-wrap">
+            <input type="password" id="pwCurrent"
+              placeholder="Enter current password"
+              autocomplete="current-password" />
+            <button type="button" class="toggle-pw" onclick="togglePw('pwCurrent','eye-cur')" aria-label="Show/hide password" tabindex="-1">
+              <svg id="eye-cur" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="pwNew">New Password</label>
+          <div class="input-wrap">
+            <input type="password" id="pwNew"
+              placeholder="Min. 8 characters"
+              autocomplete="new-password"
+              oninput="updateStrength(this.value)" />
+            <button type="button" class="toggle-pw" onclick="togglePw('pwNew','eye-new')" aria-label="Show/hide password" tabindex="-1">
+              <svg id="eye-new" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <!-- Visual password strength indicator -->
+          <div class="pw-strength" id="pw-strength-bars">
+            <div class="pw-strength-bar" id="bar1"></div>
+            <div class="pw-strength-bar" id="bar2"></div>
+            <div class="pw-strength-bar" id="bar3"></div>
+            <div class="pw-strength-bar" id="bar4"></div>
+          </div>
+          <div class="pw-strength-label" id="pw-strength-label"></div>
+        </div>
+
+        <div class="field">
+          <label for="pwConfirm">Confirm New Password</label>
+          <div class="input-wrap">
+            <input type="password" id="pwConfirm"
+              placeholder="Repeat new password"
+              autocomplete="new-password" />
+            <button type="button" class="toggle-pw" onclick="togglePw('pwConfirm','eye-conf')" aria-label="Show/hide password" tabindex="-1">
+              <svg id="eye-conf" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="button" class="btn-submit" id="btn-pw-submit" onclick="doChangePassword()">
+          <div class="btn-inner">
+            <div class="spinner" id="pw-spinner"></div>
+            <span id="btn-pw-text">Change Password</span>
+          </div>
+        </button>
+
+      </div>
+    </div><!-- /view-password -->
+
+  </div><!-- /card -->
+
+  <div class="page-footer" id="page-footer">OPNsense 26.x · Network Access Portal</div>
+
+</div><!-- /page -->
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+ * OPNsense Captive Portal — v4
+ * Polish UI / English comments
+ *
+ * THREE SERVER-SIDE ENDPOINTS (all run as configd actions, no API
+ * keys or secrets are ever exposed to the browser):
+ *
+ *  1. Auth   POST /api/captiveportal/access/logon/{zoneid}/
+ *            Header: zoneid: {zoneid}   — mandatory in OPNsense 25+/26+
+ *            Body:   user=...&password=...
+ *
+ *  2. Stats  GET  /stats?ip={clientip}
+ *            → lighttpd mod_proxy → portal_backend.py:8765
+ *            → dns_stats.py (API key in /usr/local/etc/dns_stats.conf)
+ *
+ *  3. Passwd POST /change-password
+ *            Body: user=...&old=...&new=...
+ *            → /usr/local/opnsense/scripts/auth/change_password.php
+ *            → verifies old password via opnsense-auth (setuid),
+ *              writes new bcrypt hash to /conf/config.xml using
+ *              OPNsense's own local_user_set_password() + write_config()
+ * ════════════════════════════════════════════════════════════════════ */
+
+/* ── Parse OPNsense-injected URL query parameters ── */
+function getURLparams() {
+  var p = {};
+  window.location.search.replace(/[?&]([^=&#]+)=([^&#]*)/g, function(_, k, v) {
+    p[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' '));
+  });
+  return p;
+}
+
+var urlParams    = getURLparams();
+var zoneid       = urlParams['zoneid']   || '0';
+var redirurl     = urlParams['redirurl'] || '';
+var clientip     = urlParams['clientip'] || '';
+var maxtime      = parseInt(urlParams['maxtime'] || '0', 10);
+// authedUser persisted in sessionStorage so it survives page refreshes.
+// The status check on load restores it automatically.
+var authedUser = sessionStorage.getItem('portalUser') || '';
+
+/* ── Populate info bar ── */
+document.getElementById('display-ip').textContent    = clientip || 'Detecting...';
+document.getElementById('display-limit').textContent = fmtLimit(maxtime);
+document.getElementById('session-ip').textContent    = clientip || '—';
+
+if (zoneid && zoneid !== '0') {
+  document.getElementById('page-footer').textContent =
+    'Zone ' + zoneid + ' · OPNsense 26.x · Network Access Portal';
+}
+
+function fmtLimit(secs) {
+  if (!secs || secs <= 0) return 'No limit';
+  var h = Math.floor(secs / 3600);
+  var m = Math.floor((secs % 3600) / 60);
+  return h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+}
+
+/* ── View switcher ── */
+function showView(name) {
+  ['login', 'session', 'password'].forEach(function(v) {
+    document.getElementById('view-' + v).style.display = (v === name) ? 'block' : 'none';
+  });
+  // Clear password form when navigating away
+  if (name !== 'password') {
+    ['pwCurrent', 'pwNew', 'pwConfirm'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    hidePwMessages();
+    resetStrength();
+  }
+}
+
+/* ── Check existing auth status on page load ── */
+fetch('/api/captiveportal/access/status/' + zoneid + '/', {
+  method: 'GET',
+  headers: { 'zoneid': zoneid }
+})
+.then(function(r) { return r.json(); })
+.then(function(data) {
+  if (data && data.clientState === 'AUTHORIZED') {
+    onAuthorized(data, data.username || sessionStorage.getItem('portalUser') || '');
+  }
+})
+.catch(function() { /* no session — show login view */ });
+
+/* ══════════════════════════════════════
+ * LOGIN
+ * ══════════════════════════════════════ */
+function doLogin() {
+  var user = document.getElementById('inputUsername').value.trim();
+  var pass = document.getElementById('inputPassword').value;
+
+  if (!user || !pass) {
+    showLoginError('Please enter username and password.');
+    return;
+  }
+
+  setBtnLoading('btn-login', 'login-spinner', 'btn-login-text', 'btn-login-arrow', true);
+  hideLoginError();
+
+  fetch('/api/captiveportal/access/logon/' + zoneid + '/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'zoneid': zoneid   // Required header — OPNsense 25+/26+ ignores URL path param
+    },
+    body: 'user=' + encodeURIComponent(user) + '&password=' + encodeURIComponent(pass)
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(data) {
+    setBtnLoading('btn-login', 'login-spinner', 'btn-login-text', 'btn-login-arrow', false);
+    if (data.clientState === 'AUTHORIZED') {
+      onAuthorized(data, user, true);
+    } else {
+      showLoginError('Authentication failed. Check your credentials and try again.');
+    }
+  })
+  .catch(function(err) {
+    setBtnLoading('btn-login', 'login-spinner', 'btn-login-text', 'btn-login-arrow', false);
+    showLoginError('Unable to connect to authentication server. Try again.');
+    console.error('[Portal] Login error:', err);
+  });
+}
+
+/* Called on successful auth — from login or status check.
+ * isNewLogin=true  → fresh login: reset the timer start.
+ * isNewLogin=false → page refresh: keep the stored start so timer continues. */
+function onAuthorized(data, username, isNewLogin) {
+  authedUser = username;
+  if (username) {
+    sessionStorage.setItem('portalUser', username);
+    if (isNewLogin) {
+      sessionStorage.removeItem('portalSessionStart');
+    }
+  }
+
+  if (data.ipAddress) {
+    clientip = data.ipAddress;
+    document.getElementById('session-ip').textContent  = data.ipAddress;
+    document.getElementById('display-ip').textContent  = data.ipAddress;
+  }
+
+  startSessionTimer(data.acc_session_timeout || 0, data.startTime || 0);
+  showView('session');
+  setTimeout(loadStats, 800);
+}
+
+/* ══════════════════════════════════════
+ * LOGOUT
+ * ══════════════════════════════════════ */
+function doLogout() {
+  fetch('/api/captiveportal/access/logoff/' + zoneid + '/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'zoneid': zoneid
+    }
+  })
+  .then(function(r) { return r.json(); })
+  .catch(function() {})
+  .then(function() {
+    clearInterval(sessionTimer);
+    authedUser = '';
+    sessionStorage.removeItem('portalUser');
+    sessionStorage.removeItem('portalSessionStart');
+    document.getElementById('inputUsername').value = '';
+    document.getElementById('inputPassword').value = '';
+    showView('login');
+  });
+}
+
+/* ══════════════════════════════════════
+ * SESSION TIMER
+ * ══════════════════════════════════════ */
+var sessionTimer = null;
+var sessionStart = null;
+var sessionMax   = 0;
+
+function startSessionTimer(maxSecs, apiStartSecs) {
+  sessionMax = maxSecs;
+
+  // Priority: API-provided start (works across all browsers) → sessionStorage
+  // fallback (same-browser refresh) → now (fresh login with no API timestamp).
+  if (apiStartSecs) {
+    sessionStart = apiStartSecs * 1000;
+    sessionStorage.setItem('portalSessionStart', String(sessionStart));
+  } else {
+    var stored = sessionStorage.getItem('portalSessionStart');
+    if (stored) {
+      sessionStart = parseInt(stored, 10);
+    } else {
+      sessionStart = Date.now();
+      sessionStorage.setItem('portalSessionStart', String(sessionStart));
+    }
+  }
+  clearInterval(sessionTimer);
+  sessionTimer = setInterval(function() {
+    var elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+    document.getElementById('session-elapsed').textContent = fmtHMS(elapsed);
+    var remEl = document.getElementById('session-remaining');
+    if (sessionMax > 0) {
+      var rem = Math.max(0, sessionMax - elapsed);
+      remEl.textContent = fmtHMS(rem);
+      remEl.style.color = rem === 0 ? 'var(--danger)' : '';
+    } else {
+      remEl.textContent = 'No limit';
+    }
+  }, 1000);
+}
+
+function fmtHMS(s) {
+  return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60);
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+
+/* ══════════════════════════════════════
+ * DNS STATISTICS
+ *
+ * Endpoint: GET /stats?ip={clientip}
+ *
+ * Server side (configd action):
+ *   /usr/local/opnsense/scripts/unbound/dns_stats.py {ip}
+ *   - reads Unbound query DB
+ *   - filters by client IP
+ *   - aggregates by domain
+ *   - API key stored in /usr/local/etc/dns_stats.conf (600 root)
+ *   - returns: {"rows": [{"domain": "...", "count": N}, ...]}
+ * ══════════════════════════════════════ */
+function loadStats() {
+  if (!clientip || clientip === '—' || clientip === 'Detecting...') return;
+
+  var btn = document.getElementById('stats-refresh-btn');
+  btn.classList.add('spinning');
+  document.getElementById('stats-loading').style.display = 'flex';
+  document.getElementById('stats-error').style.display   = 'none';
+  document.getElementById('stats-list').style.display    = 'none';
+  document.getElementById('stats-empty').style.display   = 'none';
+
+  var statsUrl = '/stats?ip=' + encodeURIComponent(clientip);
+  fetch(statsUrl)
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(data) {
+    btn.classList.remove('spinning');
+    document.getElementById('stats-loading').style.display = 'none';
+    renderStats(data.rows || []);
+  })
+  .catch(function(err) {
+    btn.classList.remove('spinning');
+    document.getElementById('stats-loading').style.display = 'none';
+    document.getElementById('stats-error').style.display   = 'block';
+    console.error('[Portal] Stats error:', err);
+  });
+}
+
+function renderStats(items) {
+  var list  = document.getElementById('stats-list');
+  var empty = document.getElementById('stats-empty');
+  if (!items.length) { empty.style.display = 'block'; return; }
+
+  var max  = items[0].count || 1;
+  var html = '';
+  items.forEach(function(item, i) {
+    var pct     = Math.round((item.count / max) * 100);
+    var opacity = Math.max(0.4, 1 - (i / items.length) * 0.5);
+    html +=
+      '<div class="stats-row">' +
+        '<span class="stats-rank">' + (i + 1) + '</span>' +
+        '<div class="stats-bar-wrap">' +
+          '<div class="stats-domain" title="' + esc(item.domain) + '">' + esc(item.domain) + '</div>' +
+          '<div class="stats-bar-bg">' +
+            '<div class="stats-bar-fill" style="width:' + pct + '%;opacity:' + opacity + '"></div>' +
+          '</div>' +
+        '</div>' +
+        '<span class="stats-count">' + item.count + '</span>' +
+      '</div>';
+  });
+  list.innerHTML = html;
+  list.style.display = 'block';
+}
+
+/* ══════════════════════════════════════
+ * CHANGE PASSWORD
+ *
+ * Endpoint: POST /change-password
+ * Body (URL-encoded): user=...&old=...&new=...
+ *
+ * Server side (configd action):
+ *   /usr/local/opnsense/scripts/auth/change_password.php
+ *   1. Verifies old password via /usr/local/libexec/opnsense-auth
+ *      (runs setuid — no credentials stored on disk)
+ *   2. Validates new password length + complexity
+ *   3. Generates bcrypt hash (cost 11) or SHA-512 if FIPS policy active
+ *   4. Updates $config['system']['user'][$idx]['password'] in config.xml
+ *   5. Calls local_user_set() + write_config() to persist
+ *   Returns: {"status": "ok"} or {"status": "error", "message": "..."}
+ * ══════════════════════════════════════ */
+function doChangePassword() {
+  var oldPw  = document.getElementById('pwCurrent').value;
+  var newPw  = document.getElementById('pwNew').value;
+  var confPw = document.getElementById('pwConfirm').value;
+
+  hidePwMessages();
+
+  // Client-side validation before hitting the server
+  if (!authedUser) {
+    showPwError('Unable to identify user. Please log out and log in again.');
+    return;
+  }
+  if (!oldPw) {
+    showPwError('Please enter your current password.');
+    return;
+  }
+  if (newPw.length < 8) {
+    showPwError('New password must be at least 8 characters.');
+    return;
+  }
+  if (newPw !== confPw) {
+    showPwError('New passwords do not match.');
+    return;
+  }
+  if (newPw === oldPw) {
+    showPwError('New password must differ from current password.');
+    return;
+  }
+
+  setBtnLoading('btn-pw-submit', 'pw-spinner', 'btn-pw-text', null, true);
+
+  fetch('/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'user='  + encodeURIComponent(authedUser) +
+          '&old='  + encodeURIComponent(oldPw) +
+          '&new='  + encodeURIComponent(newPw)
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(data) {
+    setBtnLoading('btn-pw-submit', 'pw-spinner', 'btn-pw-text', null, false);
+    if (data.status === 'ok') {
+      document.getElementById('pw-success-box').classList.add('show');
+      // Clear all password fields after success
+      ['pwCurrent', 'pwNew', 'pwConfirm'].forEach(function(id) {
+        document.getElementById(id).value = '';
+      });
+      resetStrength();
+      // Auto-return to session view after 2.5 s
+      setTimeout(function() { showView('session'); }, 2500);
+    } else {
+      showPwError(data.message || 'Password change error. Try again.');
+    }
+  })
+  .catch(function(err) {
+    setBtnLoading('btn-pw-submit', 'pw-spinner', 'btn-pw-text', null, false);
+    showPwError('Unable to connect to server. Try again.');
+    console.error('[Portal] Password change error:', err);
+  });
+}
+
+/* ══════════════════════════════════════
+ * PASSWORD STRENGTH METER
+ * Simple 4-bar visual indicator shown
+ * while typing a new password.
+ * ══════════════════════════════════════ */
+function updateStrength(val) {
+  var bars   = document.getElementById('pw-strength-bars');
+  var label  = document.getElementById('pw-strength-label');
+  bars.classList.add('visible');
+
+  var score = 0;
+  if (val.length >= 8)                            score++;
+  if (val.length >= 12)                           score++;
+  if (/[A-Z]/.test(val) && /[a-z]/.test(val))    score++;
+  if (/[0-9]/.test(val))                          score++;
+  if (/[^A-Za-z0-9]/.test(val))                  score = Math.min(4, score + 1);
+
+  var levels = ['', 'active-weak', 'active-weak', 'active-medium', 'active-strong'];
+  var labels = ['', 'Weak', 'Weak', 'Fair', 'Strong'];
+
+  for (var i = 1; i <= 4; i++) {
+    var bar = document.getElementById('bar' + i);
+    bar.className = 'pw-strength-bar' + (i <= score ? ' ' + levels[score] : '');
+  }
+  label.textContent = val.length ? labels[score] : '';
+}
+
+function resetStrength() {
+  document.getElementById('pw-strength-bars').classList.remove('visible');
+  document.getElementById('pw-strength-label').textContent = '';
+  for (var i = 1; i <= 4; i++) {
+    document.getElementById('bar' + i).className = 'pw-strength-bar';
+  }
+}
+
+/* ══════════════════════════════════════
+ * UI HELPERS
+ * ══════════════════════════════════════ */
+
+/* Generic button loading state toggler */
+function setBtnLoading(btnId, spinnerId, textId, arrowId, on) {
+  var btn = document.getElementById(btnId);
+  btn.disabled = on;
+  document.getElementById(spinnerId).style.display = on ? 'block' : 'none';
+  document.getElementById(textId).style.display    = on ? 'none'  : 'inline';
+  if (arrowId) document.getElementById(arrowId).style.display = on ? 'none' : 'inline';
+}
+
+function showLoginError(msg) {
+  document.getElementById('login-error-text').textContent = msg;
+  document.getElementById('login-error-box').classList.add('show');
+}
+function hideLoginError() {
+  document.getElementById('login-error-box').classList.remove('show');
+}
+function showPwError(msg) {
+  document.getElementById('pw-error-text').textContent = msg;
+  document.getElementById('pw-error-box').classList.add('show');
+}
+function hidePwMessages() {
+  document.getElementById('pw-error-box').classList.remove('show');
+  document.getElementById('pw-success-box').classList.remove('show');
+}
+
+/* Toggle password field visibility — shared across all views */
+function togglePw(inputId, iconId) {
+  var inp  = document.getElementById(inputId);
+  var icon = document.getElementById(iconId);
+  var show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  icon.innerHTML = show
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>' +
+      '<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>' +
+      '<line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Keyboard navigation ── */
+document.getElementById('inputUsername').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') document.getElementById('inputPassword').focus();
+});
+document.getElementById('inputPassword').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('pwCurrent').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') document.getElementById('pwNew').focus();
+});
+document.getElementById('pwNew').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') document.getElementById('pwConfirm').focus();
+});
+document.getElementById('pwConfirm').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doChangePassword();
+});
+
+/* ── Prevent back-button form replay ── */
+if (window.history && window.history.replaceState) {
+  window.history.replaceState(null, '', window.location.href);
+}
+</script>
+
+</body>
+</html>
