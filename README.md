@@ -10,15 +10,14 @@
 
 ## Features
 
-- **Modern dark UI** — responsive, TLS-encrypted, no external JS dependencies
+- **Modern dark UI** — animated background, live clock, two-column session layout, responsive, no external JS dependencies
 - **OPNsense Local Database authentication** via REST API (not legacy HTML form POST)
-- **DNS statistics** — top 5 visited domains per client, read directly from Unbound's DuckDB query log
+- **DNS statistics** — top 5 all-time visited domains per client, read directly from Unbound's DuckDB query log, auto-refreshes every 60 s
 - **Self-service password change** — bcrypt-hashed, policy-enforced, zero secrets exposed
-- **Session timer** — live elapsed and remaining time
+- **Session timer** — live elapsed and remaining time, username display
 - **IP address display** — visible before and after login
 - **Password strength meter** — visual 4-bar indicator
 - **Favicon** — themed to match the portal
-- **Available in English and Polish**
 
 ---
 
@@ -60,10 +59,8 @@ portal_backend.py  (Python, root, outside lighttpd chroot, port 8765)
 ```
 repository/
 ├── portal/
-│   ├── index_en.html              # Captive portal template (English)
-│   ├── index_pl.html              # Captive portal template (Polish)
-│   ├── portal_template_en.zip     # Ready-to-upload ZIP (English, includes favicon)
-│   ├── portal_template_pl.zip     # Ready-to-upload ZIP (Polish, includes favicon)
+│   ├── index.html                 # Captive portal template
+│   ├── portal.zip                 # Ready-to-upload ZIP (includes index.html + favicon)
 │   └── favicon.ico                # Portal favicon (16x16, 32x32, 48x48)
 ├── backend/
 │   ├── portal_backend.py          # HTTP backend service (port 8765)
@@ -124,7 +121,7 @@ WHERE client = ?
 GROUP BY domain ORDER BY count DESC LIMIT 5
 ```
 
-An optional second argument accepts a Unix timestamp to filter queries made after a specific point in time (used by the portal to show stats since login).
+An optional second argument accepts a Unix timestamp to filter queries made after a specific point in time.
 
 Test:
 ```bash
@@ -153,7 +150,7 @@ echo '{"user":"testuser","old":"CurrentPass1","new":"NewPass999!"}' \
 
 echo '{"user":"testuser","old":"wrongpass","new":"NewPass999!"}' \
   | /usr/local/opnsense/scripts/auth/change_password.php
-# → {"status":"error","message":"Nieprawidłowe aktualne hasło."}
+# → {"status":"error","message":"Invalid current password."}
 ```
 
 ---
@@ -241,25 +238,18 @@ curl -sk -X POST "https://<OPNsense-IP>:8000/change-password" \
 
 ## Step 6 — Upload Portal Template
 
-The `portal/` directory contains ready-to-upload ZIP archives:
-
-- `portal_template_en.zip` — English UI
-- `portal_template_pl.zip` — Polish UI
-
-Each ZIP contains `index.html` (renamed from the language-specific source) and `favicon.ico`.
-
-To build your own ZIP manually:
-```bash
-cd portal/
-cp index_en.html index.html
-zip portal_template_en.zip index.html favicon.ico
-rm index.html
-```
+The `portal/portal.zip` file is ready to upload. It contains `index.html` and `favicon.ico`.
 
 Upload to OPNsense:
 1. Go to **Services → Captive Portal → Templates**
-2. Upload the ZIP file
+2. Upload `portal/portal.zip`
 3. Assign the template to your captive portal zone
+
+> If you modify `index.html`, recreate the ZIP before uploading:
+> ```bash
+> cd portal/
+> zip portal.zip index.html favicon.ico
+> ```
 
 ---
 

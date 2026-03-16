@@ -19,6 +19,8 @@
 CONF="/var/etc/lighttpd-cp-zone-0.conf"
 PIDFILE="/var/run/lighttpd-cp-zone-0.pid"
 LOGFILE="/var/log/portal_backend.log"
+LIGHTTPD="/usr/local/sbin/lighttpd"
+PYTHON3="/usr/local/bin/python3"
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') post_reconfigure: $*" >> "${LOGFILE}"; }
 
@@ -54,7 +56,7 @@ grep -q "8765" "${CONF}" && { log "already patched, skipping"; exit 0; }
 #           )
 #   )
 
-python3 - "${CONF}" << 'PYEOF'
+${PYTHON3} - "${CONF}" << 'PYEOF'
 import sys, re
 
 conf_path = sys.argv[1]
@@ -97,17 +99,17 @@ if [ $result -eq 0 ]; then
     log "proxy routes merged into proxy.server block"
 
     # Validate config before reloading
-    if lighttpd -t -f "${CONF}" 2>/dev/null; then
+    if ${LIGHTTPD} -t -f "${CONF}" 2>/dev/null; then
         if [ -f "${PIDFILE}" ] && kill -0 $(cat "${PIDFILE}") 2>/dev/null; then
             # Full restart — HUP does not reliably apply proxy.server changes
             kill -TERM $(cat "${PIDFILE}") 2>/dev/null
             sleep 1
-            lighttpd -f "${CONF}"
+            ${LIGHTTPD} -f "${CONF}"
             log "lighttpd restarted successfully"
         fi
     else
         log "ERROR: lighttpd config test failed after patch — check ${CONF}"
-        lighttpd -t -f "${CONF}" >> "${LOGFILE}" 2>&1
+        ${LIGHTTPD} -t -f "${CONF}" >> "${LOGFILE}" 2>&1
     fi
 else
     log "ERROR: python3 patch failed"
