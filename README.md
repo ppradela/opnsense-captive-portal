@@ -155,48 +155,11 @@ echo '{"user":"testuser","old":"wrongpass","new":"NewPass999!"}' \
 
 ---
 
-## Step 4 — Install and Start the Backend Service
-
-The backend is a Python HTTP server that runs as root outside the lighttpd chroot. It handles both `/change-password` and `/stats` endpoints.
-
-```bash
-mkdir -p /usr/local/opnsense/scripts/captiveportal
-
-# Copy from repository
-cp backend/portal_backend.py \
-   /usr/local/opnsense/scripts/captiveportal/portal_backend.py
-cp backend/portal_backend.rc \
-   /usr/local/etc/rc.d/portal_backend
-
-chmod 750 /usr/local/opnsense/scripts/captiveportal/portal_backend.py
-chmod 755 /usr/local/etc/rc.d/portal_backend
-chown root:wheel /usr/local/opnsense/scripts/captiveportal/portal_backend.py
-
-# Enable on boot
-echo 'portal_backend_enable="YES"' >> /etc/rc.conf.local
-
-# Start now
-service portal_backend start
-service portal_backend status
-# → portal_backend is running as PID XXXXX
-```
-
-Test the backend directly:
-```bash
-# Stats
-curl -s "http://127.0.0.1:8765/stats?ip=10.100.231.159"
-
-# Password change (no special chars in test)
-curl -s -X POST http://127.0.0.1:8765/change-password \
-  -d "user=testuser&old=CurrentPass1&new=NewPass999"
-# → {"status": "ok"}
-```
-
----
-
-## Step 5 — Patch lighttpd Config (Proxy Rules)
+## Step 4 — Patch lighttpd Config (Proxy Rules)
 
 OPNsense regenerates the lighttpd captive portal config on every reconfigure. The post-reconfigure hook patches it automatically and performs a full lighttpd restart to ensure proxy changes take effect.
+
+> **This step must be done before starting the backend service** — the backend RC script calls `post_reconfigure.sh` on startup.
 
 ```bash
 cp backend/post_reconfigure.sh \
@@ -226,6 +189,43 @@ Expected output:
 ```
 
 The script performs a full lighttpd restart (not just HUP) because `proxy.server` changes are not picked up by a reload signal alone. It validates the config with `lighttpd -t` before restarting.
+
+---
+
+## Step 5 — Install and Start the Backend Service
+
+The backend is a Python HTTP server that runs as root outside the lighttpd chroot. It handles both `/change-password` and `/stats` endpoints.
+
+```bash
+# Copy from repository
+cp backend/portal_backend.py \
+   /usr/local/opnsense/scripts/captiveportal/portal_backend.py
+cp backend/portal_backend.rc \
+   /usr/local/etc/rc.d/portal_backend
+
+chmod 750 /usr/local/opnsense/scripts/captiveportal/portal_backend.py
+chmod 755 /usr/local/etc/rc.d/portal_backend
+chown root:wheel /usr/local/opnsense/scripts/captiveportal/portal_backend.py
+
+# Enable on boot
+echo 'portal_backend_enable="YES"' >> /etc/rc.conf.local
+
+# Start now (use onestart to bypass rc.conf cache on first run)
+service portal_backend onestart
+service portal_backend status
+# → portal_backend is running as PID XXXXX
+```
+
+Test the backend directly:
+```bash
+# Stats
+curl -s "http://127.0.0.1:8765/stats?ip=10.100.231.159"
+
+# Password change (no special chars in test)
+curl -s -X POST http://127.0.0.1:8765/change-password \
+  -d "user=testuser&old=CurrentPass1&new=NewPass999"
+# → {"status": "ok"}
+```
 
 Test through lighttpd:
 ```bash
