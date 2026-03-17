@@ -205,9 +205,10 @@ chmod 755 /usr/local/etc/rc.d/portal_backend
 chown root:wheel /usr/local/opnsense/scripts/captiveportal/portal_backend.py
 
 # Enable on boot
-# portal_backend.rc includes PROVIDE/REQUIRE rcorder metadata so FreeBSD
-# picks it up during boot automatically once the enable flag is set.
-echo 'portal_backend_enable="YES"' > /usr/local/etc/rc.conf.d/portal_backend
+# Use /etc/rc.conf.d/ — OPNsense does not reliably read /usr/local/etc/rc.conf.d/
+# and does not overwrite /etc/rc.conf.d/ on upgrades.
+mkdir -p /etc/rc.conf.d
+echo 'portal_backend_enable="YES"' > /etc/rc.conf.d/portal_backend
 
 # Start now
 service portal_backend start
@@ -284,11 +285,12 @@ sh /usr/local/opnsense/scripts/captiveportal/post_reconfigure.sh
 
 ```bash
 # Check the enable flag is set
-cat /usr/local/etc/rc.conf.d/portal_backend
+cat /etc/rc.conf.d/portal_backend
 # Should show: portal_backend_enable="YES"
 
 # If missing, recreate it
-echo 'portal_backend_enable="YES"' > /usr/local/etc/rc.conf.d/portal_backend
+mkdir -p /etc/rc.conf.d
+echo 'portal_backend_enable="YES"' > /etc/rc.conf.d/portal_backend
 service portal_backend start
 ```
 

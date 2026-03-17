@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # PROVIDE: portal_backend
-# REQUIRE: NETWORKING DAEMON lighttpd
+# REQUIRE: NETWORKING DAEMON
 # KEYWORD: shutdown
 #
 # portal_backend.rc
@@ -15,7 +15,7 @@
 #   chmod 755 /usr/local/etc/rc.d/portal_backend
 #
 # ENABLE (survives reboots):
-#   echo 'portal_backend_enable="YES"' > /usr/local/etc/rc.conf.d/portal_backend
+#   echo 'portal_backend_enable="YES"' > /etc/rc.conf.d/portal_backend
 #
 # USAGE:
 #   service portal_backend start
