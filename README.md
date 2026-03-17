@@ -123,9 +123,9 @@ GROUP BY domain ORDER BY count DESC LIMIT 10
 
 An optional second argument accepts a Unix timestamp to filter queries made after a specific point in time.
 
-Test:
+Test (replace with an actual captive portal client IP):
 ```bash
-/usr/local/opnsense/scripts/captiveportal/dns_stats.py 10.100.231.159
+/usr/local/opnsense/scripts/captiveportal/dns_stats.py <client-ip>
 # → {"rows": [{"domain": "google.com", "count": 12}, ...]}
 ```
 
@@ -175,17 +175,14 @@ ln -sf /usr/local/opnsense/scripts/captiveportal/post_reconfigure.sh \
 # Apply right now
 sh /usr/local/opnsense/scripts/captiveportal/post_reconfigure.sh
 
-# Verify
+# Verify (should return 2 lines)
 grep "8765" /var/etc/lighttpd-cp-zone-0.conf
 ```
 
 Expected output:
 ```
-                "/change-password" => (
-                ( "host" => "127.0.0.1",
                   "port" => 8765 )
-        ),
-                "/stats" => (
+                  "port" => 8765 )
 ```
 
 The script performs a full lighttpd restart (not just HUP) because `proxy.server` changes are not picked up by a reload signal alone. It validates the config with `lighttpd -t` before restarting.
@@ -218,8 +215,8 @@ service portal_backend status
 
 Test the backend directly:
 ```bash
-# Stats
-curl -s "http://127.0.0.1:8765/stats?ip=10.100.231.159"
+# Stats — replace with an actual captive portal client IP
+curl -s "http://127.0.0.1:8765/stats?ip=<client-ip>"
 
 # Password change (no special chars in test)
 curl -s -X POST http://127.0.0.1:8765/change-password \
@@ -303,7 +300,7 @@ ls -lh /var/unbound/data/unbound.duckdb
 # Firewall → NAT → Port Forward
 # Protocol: TCP/UDP, Dest Port: 53, Redirect to: <OPNsense-IP> port 53
 
-# Test the script directly
+# Test the script directly (use an actual captive portal client IP)
 /usr/local/opnsense/scripts/captiveportal/dns_stats.py <client-ip>
 ```
 
@@ -342,5 +339,12 @@ MIT — free to use, modify, and distribute.
 
 ## Author
 
+**Przemysław Pradela**
+
 Built through real production deployment and testing on OPNsense 26.x.
+
+[![GitHub](https://img.shields.io/badge/GitHub-ppradela-181717?logo=github)](https://github.com/ppradela)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Przemysław%20Pradela-0A66C2?logo=linkedin)](https://www.linkedin.com/in/przemyslaw-pradela)
+[![Website](https://img.shields.io/badge/Website-pradela.ovh-4A90D9?logo=globe)](https://pradela.ovh)
+
 Contributions and issue reports welcome.
