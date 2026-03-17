@@ -2,7 +2,7 @@
 """
 dns_stats.py
 
-Returns top 5 domains queried by a specific client IP.
+Returns top 10 domains queried by a specific client IP.
 Reads directly from OPNsense's Unbound DuckDB query log.
 
 Usage:
@@ -50,7 +50,7 @@ try:
         sql += ' AND time >= ?'
         params.append(since_unix)
 
-    sql += ' GROUP BY domain ORDER BY count DESC LIMIT 5'
+    sql += ' GROUP BY domain ORDER BY count DESC LIMIT 10'
 
     rows = [{'domain': row[0].rstrip('.'), 'count': row[1]}
             for row in con.execute(sql, params).fetchall()]

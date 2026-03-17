@@ -10,11 +10,11 @@
 
 ## Features
 
-- **Modern dark UI** — animated background, live clock, two-column session layout, responsive, no external JS dependencies
+- **Modern dark UI** — animated background, large live clock, two-column session layout, responsive, no external JS dependencies
 - **OPNsense Local Database authentication** via REST API (not legacy HTML form POST)
-- **DNS statistics** — top 5 all-time visited domains per client, read directly from Unbound's DuckDB query log, auto-refreshes every 60 s
+- **DNS statistics** — top 10 all-time visited domains per client, read directly from Unbound's DuckDB query log, auto-refreshes every 60 s
 - **Self-service password change** — bcrypt-hashed, policy-enforced, zero secrets exposed
-- **Session timer** — live elapsed and remaining time, username display
+- **Session stats** — live elapsed/remaining time, username, MAC address, data in/out (auto-scaled B/KB/MB/GB)
 - **IP address display** — visible before and after login
 - **Password strength meter** — visual 4-bar indicator
 - **Favicon** — themed to match the portal
@@ -118,7 +118,7 @@ WHERE client = ?
   AND domain IS NOT NULL
   AND domain NOT LIKE '%.in-addr.arpa'
   AND domain NOT LIKE '%.ip6.arpa'
-GROUP BY domain ORDER BY count DESC LIMIT 5
+GROUP BY domain ORDER BY count DESC LIMIT 10
 ```
 
 An optional second argument accepts a Unix timestamp to filter queries made after a specific point in time.

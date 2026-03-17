@@ -771,6 +771,10 @@
               <div class="s-label">Logged in as</div>
               <div class="s-val" id="session-username">—</div>
             </div>
+            <div class="session-stat wide">
+              <div class="s-label">MAC Address</div>
+              <div class="s-val" id="session-mac">—</div>
+            </div>
             <div class="session-stat">
               <div class="s-label">Connection Time</div>
               <div class="s-val" id="session-elapsed">00:00:00</div>
@@ -778,6 +782,14 @@
             <div class="session-stat">
               <div class="s-label">Remaining Time</div>
               <div class="s-val" id="session-remaining">—</div>
+            </div>
+            <div class="session-stat">
+              <div class="s-label">Data In</div>
+              <div class="s-val" id="session-bytes-in">—</div>
+            </div>
+            <div class="session-stat">
+              <div class="s-label">Data Out</div>
+              <div class="s-val" id="session-bytes-out">—</div>
             </div>
           </div>
 
@@ -789,7 +801,7 @@
         <div class="session-right">
           <div class="stats-section">
             <div class="stats-header">
-              <span class="stats-title">Most Visited Domains</span>
+              <span class="stats-title">Top 10 Visited Domains</span>
               <button class="stats-refresh" id="stats-refresh-btn" onclick="loadStats()" title="Refresh">
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                   <polyline points="23 4 23 10 17 10"/>
@@ -967,9 +979,9 @@ var zoneid       = urlParams['zoneid']   || '0';
 var redirurl     = urlParams['redirurl'] || '';
 var clientip     = urlParams['clientip'] || '';
 var maxtime      = parseInt(urlParams['maxtime'] || '0', 10);
-// authedUser persisted in sessionStorage so it survives page refreshes.
+// authedUser persisted in localStorage so it survives tab/browser restarts.
 // The status check on load restores it automatically.
-var authedUser = sessionStorage.getItem('portalUser') || '';
+var authedUser = localStorage.getItem('portalUser') || '';
 
 /* ── Populate info bar ── */
 document.getElementById('display-ip').textContent    = clientip || 'Detecting...';
@@ -1014,7 +1026,8 @@ fetch('/api/captiveportal/access/status/' + zoneid + '/', {
 .then(function(r) { return r.json(); })
 .then(function(data) {
   if (data && data.clientState === 'AUTHORIZED') {
-    onAuthorized(data, data.username || sessionStorage.getItem('portalUser') || '');
+    var apiUser = data.username || data.userName || data.user || '';
+    onAuthorized(data, apiUser || localStorage.getItem('portalUser') || '');
   }
 })
 .catch(function() { /* no session — show login view */ });
@@ -1067,7 +1080,7 @@ function doLogin() {
 function onAuthorized(data, username, isNewLogin) {
   authedUser = username;
   if (username) {
-    sessionStorage.setItem('portalUser', username);
+    localStorage.setItem('portalUser', username);
     if (isNewLogin) {
       sessionStorage.removeItem('portalSessionStart');
     }
@@ -1079,8 +1092,17 @@ function onAuthorized(data, username, isNewLogin) {
     document.getElementById('display-ip').textContent  = data.ipAddress;
   }
 
-  if (username) {
-    document.getElementById('session-username').textContent = username;
+  var displayName = username || data.ipAddress || '—';
+  document.getElementById('session-username').textContent = displayName;
+
+  if (data.macAddress) {
+    document.getElementById('session-mac').textContent = data.macAddress;
+  }
+  if (data.bytes_in != null) {
+    document.getElementById('session-bytes-in').textContent  = bytesToGB(data.bytes_in);
+  }
+  if (data.bytes_out != null) {
+    document.getElementById('session-bytes-out').textContent = bytesToGB(data.bytes_out);
   }
 
   startSessionTimer(data.acc_session_timeout || 0, data.startTime || 0);
@@ -1104,7 +1126,7 @@ function doLogout() {
   .then(function() {
     clearInterval(sessionTimer);
     authedUser = '';
-    sessionStorage.removeItem('portalUser');
+    localStorage.removeItem('portalUser');
     sessionStorage.removeItem('portalSessionStart');
     document.getElementById('inputUsername').value = '';
     document.getElementById('inputPassword').value = '';
@@ -1149,6 +1171,15 @@ function startSessionTimer(maxSecs, apiStartSecs) {
       remEl.textContent = 'No limit';
     }
   }, 1000);
+}
+
+function bytesToGB(bytes) {
+  var b = parseInt(bytes, 10) || 0;
+  if (b === 0)              return '0 B';
+  if (b < 1024)             return b + ' B';
+  if (b < 1024 * 1024)     return (b / 1024).toFixed(1) + ' KB';
+  if (b < 1024 * 1024 * 1024) return (b / (1024 * 1024)).toFixed(1) + ' MB';
+  return (b / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }
 
 function fmtHMS(s) {
