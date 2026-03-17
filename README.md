@@ -204,13 +204,15 @@ chmod 750 /usr/local/opnsense/scripts/captiveportal/portal_backend.py
 chmod 755 /usr/local/etc/rc.d/portal_backend
 chown root:wheel /usr/local/opnsense/scripts/captiveportal/portal_backend.py
 
-# Enable on boot
-# OPNsense overwrites /etc/rc.conf.local on reboot — use rc.conf.d instead
-mkdir -p /usr/local/etc/rc.conf.d
-echo 'portal_backend_enable="YES"' > /usr/local/etc/rc.conf.d/portal_backend
+# Enable on boot via OPNsense bootup syshook
+# (OPNsense does not reliably run /usr/local/etc/rc.d scripts on boot)
+mkdir -p /usr/local/etc/rc.syshook.d/bootup
+printf '#!/bin/sh\nservice portal_backend start\n' \
+    > /usr/local/etc/rc.syshook.d/bootup/99-portal-backend
+chmod 755 /usr/local/etc/rc.syshook.d/bootup/99-portal-backend
 
 # Start now
-service portal_backend start
+service portal_backend onestart
 service portal_backend status
 # → portal_backend is running as PID XXXXX
 ```
@@ -283,13 +285,16 @@ sh /usr/local/opnsense/scripts/captiveportal/post_reconfigure.sh
 ### Backend not running after reboot
 
 ```bash
-cat /usr/local/etc/rc.conf.d/portal_backend
-# Should show: portal_backend_enable="YES"
+# Check the bootup syshook is in place
+ls -la /usr/local/etc/rc.syshook.d/bootup/99-portal-backend
 
 # If missing, recreate it
-mkdir -p /usr/local/etc/rc.conf.d
-echo 'portal_backend_enable="YES"' > /usr/local/etc/rc.conf.d/portal_backend
-service portal_backend start
+mkdir -p /usr/local/etc/rc.syshook.d/bootup
+printf '#!/bin/sh\nservice portal_backend start\n' \
+    > /usr/local/etc/rc.syshook.d/bootup/99-portal-backend
+chmod 755 /usr/local/etc/rc.syshook.d/bootup/99-portal-backend
+
+service portal_backend onestart
 ```
 
 ### DNS stats empty

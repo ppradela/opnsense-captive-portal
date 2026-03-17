@@ -10,8 +10,10 @@
 #   cp portal_backend.rc /usr/local/etc/rc.d/portal_backend
 #   chmod 755 /usr/local/etc/rc.d/portal_backend
 #
-# ENABLE (survives reboots):
-#   echo 'portal_backend_enable="YES"' >> /etc/rc.conf.local
+# ENABLE (survives reboots via OPNsense bootup syshook):
+#   printf '#!/bin/sh\nservice portal_backend start\n' \
+#       > /usr/local/etc/rc.syshook.d/bootup/99-portal-backend
+#   chmod 755 /usr/local/etc/rc.syshook.d/bootup/99-portal-backend
 #
 # USAGE:
 #   service portal_backend start
