@@ -205,10 +205,12 @@ chmod 755 /usr/local/etc/rc.d/portal_backend
 chown root:wheel /usr/local/opnsense/scripts/captiveportal/portal_backend.py
 
 # Enable on boot
-echo 'portal_backend_enable="YES"' >> /etc/rc.conf.local
+# OPNsense overwrites /etc/rc.conf.local on reboot — use rc.conf.d instead
+mkdir -p /usr/local/etc/rc.conf.d
+echo 'portal_backend_enable="YES"' > /usr/local/etc/rc.conf.d/portal_backend
 
-# Start now (use onestart to bypass rc.conf cache on first run)
-service portal_backend onestart
+# Start now
+service portal_backend start
 service portal_backend status
 # → portal_backend is running as PID XXXXX
 ```
@@ -281,8 +283,12 @@ sh /usr/local/opnsense/scripts/captiveportal/post_reconfigure.sh
 ### Backend not running after reboot
 
 ```bash
-grep portal_backend /etc/rc.conf.local
+cat /usr/local/etc/rc.conf.d/portal_backend
 # Should show: portal_backend_enable="YES"
+
+# If missing, recreate it
+mkdir -p /usr/local/etc/rc.conf.d
+echo 'portal_backend_enable="YES"' > /usr/local/etc/rc.conf.d/portal_backend
 service portal_backend start
 ```
 
