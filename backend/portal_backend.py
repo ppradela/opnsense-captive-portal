@@ -1,20 +1,29 @@
 #!/usr/local/bin/python3
+# -*- coding: utf-8 -*-
 """
 portal_backend.py
 
 Lightweight HTTP backend for the OPNsense captive portal.
 Runs as root OUTSIDE the lighttpd chroot on 127.0.0.1:8765.
-lighttpd proxies /change-password and /stats to this server.
+lighttpd proxies /change-password, /register, /stats, and /time to this server.
 
-Handles two endpoints:
+Handles four endpoints:
 
   POST /change-password
        Body: user=...&old=...&new=...  (URL-encoded)
        Passes credentials as JSON on stdin to change_password.php.
        No shell arguments — special characters ($, !, etc.) are safe.
 
+  POST /register
+       Body: type=...&fullname=...&password=...&email=...&reason=...&expires=...
+       Passes registration data as JSON on stdin to register.php.
+       Creates a disabled local user in the 'captive' group.
+
   GET  /stats?ip=x.x.x.x
        Calls dns_stats.py for DNS statistics of the given client IP.
+
+  GET  /time
+       Returns server Unix timestamp for browser clock synchronisation.
 
 INSTALL:
   cp portal_backend.py /usr/local/opnsense/scripts/captiveportal/portal_backend.py
@@ -37,6 +46,7 @@ LISTEN_PORT = 8765
 
 CHANGE_PASSWORD_SCRIPT = '/usr/local/opnsense/scripts/auth/change_password.php'
 DNS_STATS_SCRIPT       = '/usr/local/opnsense/scripts/captiveportal/dns_stats.py'
+REGISTER_SCRIPT        = '/usr/local/opnsense/scripts/captiveportal/register.php'
 
 
 def json_response(handler, data: dict, status: int = 200) -> None:
@@ -148,16 +158,76 @@ class PortalHandler(http.server.BaseHTTPRequestHandler):
             self.log_error('change_password error: %s', e)
             json_response(self, {'status': 'error', 'message': 'Internal server error.'})
 
+    # ── POST /register ───────────────────────────────────────────────────────
+    def handle_register(self):
+        length = int(self.headers.get('Content-Length', '0') or 0)
+        if length <= 0 or length > 4096:
+            json_response(self, {'status': 'error', 'message': 'Invalid request.'})
+            return
+
+        raw_body = self.rfile.read(length).decode('utf-8', errors='replace')
+        fields   = parse_qs(raw_body, keep_blank_values=False)
+
+        def field(name):
+            vals = fields.get(name, [])
+            return vals[0] if vals else ''
+
+        acc_type = field('type')      # 'employee' or 'guest'
+        password = field('password')
+        fullname = field('fullname')
+        email    = field('email')
+        reason   = field('reason')[:512]   # cap length
+        expires  = field('expires')        # YYYY-MM-DD, guest only
+
+        if acc_type not in ('employee', 'guest'):
+            acc_type = 'employee'
+        if not password or len(password) > 256:
+            json_response(self, {'status': 'error', 'message': 'Invalid password.'})
+            return
+        # Basic date format check (full validation in PHP)
+        if expires and not re.match(r'^\d{4}-\d{2}-\d{2}$', expires):
+            expires = ''
+
+        payload = json.dumps({
+            'type':     acc_type,
+            'password': password,
+            'fullname': fullname,
+            'email':    email,
+            'reason':   reason,
+            'expires':  expires,
+        })
+
+        try:
+            result = subprocess.run(
+                ['/usr/local/bin/php', REGISTER_SCRIPT],
+                input=payload,
+                capture_output=True,
+                text=True,
+                timeout=15
+            )
+            data = json.loads(result.stdout.strip())
+            json_response(self, data)
+        except subprocess.TimeoutExpired:
+            json_response(self, {'status': 'error', 'message': 'Operation timed out.'})
+        except (json.JSONDecodeError, Exception) as e:
+            self.log_error('register error: %s', e)
+            json_response(self, {'status': 'error', 'message': 'Internal server error.'})
+
     # ── Request router ───────────────────────────────────────────────────────
     def do_GET(self):
         if self.path.startswith('/stats'):
             self.handle_stats()
+        elif self.path == '/time':
+            import time as _time
+            json_response(self, {'ts': _time.time()})
         else:
             json_response(self, {'error': 'not found'}, 404)
 
     def do_POST(self):
         if self.path == '/change-password':
             self.handle_change_password()
+        elif self.path == '/register':
+            self.handle_register()
         else:
             json_response(self, {'error': 'not found'}, 404)
 

@@ -26,13 +26,15 @@ log() { echo "$(date '+%Y-%m-%d %H:%M:%S') post_reconfigure: $*" >> "${LOGFILE}"
 
 [ -f "${CONF}" ] || { log "config not found: ${CONF}"; exit 1; }
 
-# Already patched — nothing to do
-grep -q "8765" "${CONF}" && { log "already patched, skipping"; exit 0; }
+# Already patched — check for the most recently added route.
+# Checking for a specific route (not just the port) means old installs
+# missing newer routes will be re-patched automatically.
+grep -q '"/time"' "${CONF}" && { log "already patched, skipping"; exit 0; }
 
 # OPNsense generates exactly one proxy.server block, ending with:
 #   )
 # )
-# We need to insert our two routes before the closing )) of that block.
+# We need to insert our four routes before the closing )) of that block.
 #
 # Original block looks like:
 #   proxy.server = ( "/api/captiveportal/access" => (
@@ -50,7 +52,15 @@ grep -q "8765" "${CONF}" && { log "already patched, skipping"; exit 0; }
 #                   ( "host" => "127.0.0.1",
 #                     "port" => 8765 )
 #           ),
+#                   "/register" => (
+#                   ( "host" => "127.0.0.1",
+#                     "port" => 8765 )
+#           ),
 #                   "/stats" => (
+#                   ( "host" => "127.0.0.1",
+#                     "port" => 8765 )
+#           ),
+#                   "/time" => (
 #                   ( "host" => "127.0.0.1",
 #                     "port" => 8765 )
 #           )
@@ -80,7 +90,15 @@ new = (
     '                ( "host" => "127.0.0.1",\n'
     '                  "port" => 8765 )\n'
     '        ),\n'
+    '                "/register" => (\n'
+    '                ( "host" => "127.0.0.1",\n'
+    '                  "port" => 8765 )\n'
+    '        ),\n'
     '                "/stats" => (\n'
+    '                ( "host" => "127.0.0.1",\n'
+    '                  "port" => 8765 )\n'
+    '        ),\n'
+    '                "/time" => (\n'
     '                ( "host" => "127.0.0.1",\n'
     '                  "port" => 8765 )\n'
     '        )\n'

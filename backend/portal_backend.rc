@@ -8,7 +8,7 @@
 #
 # RC startup script for the captive portal backend service.
 # Runs portal_backend.py as root on 127.0.0.1:8765.
-# lighttpd proxies /change-password and /stats to this port.
+# lighttpd proxies /change-password, /register, /stats, and /time to this port.
 #
 # INSTALL:
 #   cp portal_backend.rc /usr/local/etc/rc.d/portal_backend
