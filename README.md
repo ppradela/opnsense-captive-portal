@@ -15,7 +15,7 @@
 - **Self-service registration** — guests and employees submit a request form; accounts are created disabled and require admin activation
 - **Auto-generated usernames** from Full Name (`Adam Kowalski` → `akowalski` / `akowalski_guest`), conflict-safe with auto-increment
 - **Guest accounts** — expiration date required at registration, enforced automatically by OPNsense at login
-- **DNS statistics** — top 10 all-time visited domains per client, read directly from Unbound's DuckDB query log, auto-refreshes every 60 s
+- **DNS statistics** — top 10 visited domains per client, tracked by MAC address across DHCP lease changes, read directly from Unbound's DuckDB query log, auto-refreshes every 60 s
 - **Self-service password change** — bcrypt-hashed, policy-enforced, zero secrets exposed
 - **Session stats** — live elapsed/remaining time, username, MAC address, ↑ Uploaded / ↓ Downloaded (auto-scaled B/KB/MB/GB)
 - **IP address display** — visible before and after login
@@ -47,8 +47,10 @@ portal_backend.py  (Python, root, outside lighttpd chroot, port 8765)
     │           ├── username auto-generated from Full Name + type
     │           ├── local_user_set_password() + write_config()
     │           └── adds user to 'captive' group (disabled, pending admin activation)
-    ├── GET  /stats?ip=x.x.x.x[&since=<unix_ts>]
+    ├── GET  /stats?mac=xx:xx:xx:xx:xx:xx[&ip=x.x.x.x][&since=<unix_ts>]
     │     └── dns_stats.py
+    │           ├── /var/db/kea/kea-leases4.csv  (Kea DHCP4, OPNsense 24.x+)
+    │           │   or /var/dhcpd/var/db/dhcpd.leases  (ISC dhcpd, legacy)
     │           └── /var/unbound/data/unbound.duckdb  (reads directly, read-only)
     └── GET  /time
           └── returns server Unix timestamp for browser clock sync
@@ -136,10 +138,13 @@ GROUP BY domain ORDER BY count DESC LIMIT 10
 
 An optional second argument accepts a Unix timestamp to filter queries made after a specific point in time.
 
-Test (replace with an actual captive portal client IP):
+Test (MAC preferred; IP works as fallback):
 ```bash
-/usr/local/opnsense/scripts/captiveportal/dns_stats.py <client-ip>
+/usr/local/opnsense/scripts/captiveportal/dns_stats.py aa:bb:cc:dd:ee:ff
 # → {"rows": [{"domain": "google.com", "count": 12}, ...]}
+
+# Fallback — plain IP still works
+/usr/local/opnsense/scripts/captiveportal/dns_stats.py <client-ip>
 ```
 
 ---
@@ -360,8 +365,9 @@ ls -lh /var/unbound/data/unbound.duckdb
 # Firewall → NAT → Port Forward
 # Protocol: TCP/UDP, Dest Port: 53, Redirect to: <OPNsense-IP> port 53
 
-# Test the script directly (use an actual captive portal client IP)
-/usr/local/opnsense/scripts/captiveportal/dns_stats.py <client-ip>
+# Test the script directly
+/usr/local/opnsense/scripts/captiveportal/dns_stats.py aa:bb:cc:dd:ee:ff
+/usr/local/opnsense/scripts/captiveportal/dns_stats.py <client-ip>  # IP fallback
 ```
 
 ### Password change: "Invalid current password"

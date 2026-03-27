@@ -69,14 +69,21 @@ class PortalHandler(http.server.BaseHTTPRequestHandler):
     def log_error(self, fmt, *args):
         sys.stderr.write(f'[portal_backend] {fmt % args}\n')
 
-    # ── /stats?ip=x.x.x.x ───────────────────────────────────────────────────
+    # ── /stats?mac=xx:xx:xx:xx:xx:xx[&ip=x.x.x.x][&since=ts] ───────────────
     def handle_stats(self):
         parsed = urlparse(self.path)
         qs     = parse_qs(parsed.query)
-        ip     = qs.get('ip', [''])[0]
 
-        # Validate IPv4 address — reject anything else
-        if not re.match(r'^\d{1,3}(\.\d{1,3}){3}$', ip):
+        # Prefer MAC — covers history across DHCP lease changes.
+        # Fall back to IP for clients that don't supply a MAC.
+        mac = qs.get('mac', [''])[0]
+        ip  = qs.get('ip',  [''])[0]
+
+        if mac and re.match(r'^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$', mac):
+            identifier = mac
+        elif re.match(r'^\d{1,3}(\.\d{1,3}){3}$', ip):
+            identifier = ip
+        else:
             json_response(self, {'rows': []})
             return
 
@@ -88,7 +95,7 @@ class PortalHandler(http.server.BaseHTTPRequestHandler):
             ts = int(since_raw)
             since_ts = ts // 1000 if ts > 9999999999 else ts
 
-        cmd = [DNS_STATS_SCRIPT, ip]
+        cmd = [DNS_STATS_SCRIPT, identifier]
         if since_ts:
             cmd.append(str(since_ts))
 

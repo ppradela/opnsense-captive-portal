@@ -1187,6 +1187,7 @@ var urlParams    = getURLparams();
 var zoneid       = urlParams['zoneid']   || '0';
 var redirurl     = urlParams['redirurl'] || '';
 var clientip     = urlParams['clientip'] || '';
+var clientmac    = '';
 var maxtime      = parseInt(urlParams['maxtime'] || '0', 10);
 // authedUser persisted in localStorage so it survives tab/browser restarts.
 // The status check on load restores it automatically.
@@ -1315,6 +1316,7 @@ function onAuthorized(data, username, isNewLogin) {
   document.getElementById('session-username').textContent = displayName;
 
   if (data.macAddress) {
+    clientmac = data.macAddress;
     document.getElementById('session-mac').textContent = data.macAddress;
   }
   if (data.bytes_in != null) {
@@ -1444,18 +1446,13 @@ updateClock();
 /* ══════════════════════════════════════
  * DNS STATISTICS
  *
- * Endpoint: GET /stats?ip={clientip}
+ * Endpoint: GET /stats?mac={clientmac}[&ip={clientip}][&since={ts}]
  *
- * Server side (configd action):
- *   /usr/local/opnsense/scripts/unbound/dns_stats.py {ip}
- *   - reads Unbound query DB
- *   - filters by client IP
- *   - aggregates by domain
- *   - API key stored in /usr/local/etc/dns_stats.conf (600 root)
- *   - returns: {"rows": [{"domain": "...", "count": N}, ...]}
+ * MAC is preferred so that domain history survives DHCP lease changes.
+ * IP is sent as fallback for cases where MAC is not yet known.
  * ══════════════════════════════════════ */
 function loadStats() {
-  if (!clientip || clientip === '—' || clientip === 'Detecting...') return;
+  if (!clientmac && (!clientip || clientip === '—' || clientip === 'Detecting...')) return;
 
   var btn = document.getElementById('stats-refresh-btn');
   btn.classList.add('spinning');
@@ -1464,7 +1461,8 @@ function loadStats() {
   document.getElementById('stats-list').style.display    = 'none';
   document.getElementById('stats-empty').style.display   = 'none';
 
-  var statsUrl = '/stats?ip=' + encodeURIComponent(clientip);
+  var statsUrl = '/stats?mac=' + encodeURIComponent(clientmac)
+                           + '&ip='  + encodeURIComponent(clientip);
   fetch(statsUrl)
   .then(function(r) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
